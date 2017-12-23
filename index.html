@@ -1,0 +1,108 @@
+<html>
+  <head>
+    <title>Webby Craft</title>
+    
+    <meta charset="utf-8"/>
+    
+    <script src="tools/gl-matrix-min.js"></script>
+    <script src="tools/perlin.js"       ></script>
+
+    <style>
+      .terminal {
+      width: 512px;
+      height: 100%;
+      right: -490px;
+      top: 0;
+      position: fixed;
+      margin: 0 0 0 0;
+      resize: none;
+      transition-duration: 0.5s; }
+
+      .terminal:hover {
+      transition-duration: 0.5s;
+      right: 0; }
+    </style>
+  </head>
+  <body>
+    <canvas                   style="position: fixed; top: 0; left:  0; width: 100%; height: 100%; margin: 0 0 0 0;              " id="webby-box"></canvas>
+    <textarea readonly="true" class="terminal" id="webby-log"></textarea>
+
+    <script src="craft.js"></script>
+    
+    <!-- /// ############# ///         /// ############# ///
+         /// #### /// #### /// SHADERS /// #### /// #### ///
+         /// ############# ///         /// ############# /// -->
+    
+    <script  type="text" id="webby.shader.solid.vertex">#version 300 es
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 model;
+    in      vec3 pos;
+    
+    void main() { gl_PointSize=10.0; gl_Position = (projection*view*model)*vec4(pos,1.0); } </script>
+    
+    <script  type="text" id="webby.shader.solid.fragment">#version 300 es
+    precision mediump float;
+    
+    out     vec4 frag;
+    
+    void main() { frag=vec4(1.0,0.0,0.0,1.0); } </script>
+    
+    <script  type="text" id="webby.shader.uv.vertex">#version 300 es
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 model;
+
+    in      vec3 pos;
+    in      vec2 puv;
+    out     vec2 uv;
+    
+    void main() { gl_Position = (projection*view*model)*vec4(pos,1.0); uv = puv; } </script>
+    
+    <script  type="text" id="webby.shader.uv.fragment">#version 300 es
+    precision mediump float;
+
+    uniform sampler2D terrain;
+      
+    out     vec4 frag;
+    in      vec2 uv;
+    
+    void main() { frag=texture(terrain,uv); } </script>
+    
+    <!-- /// ############# ///              /// ############# ///
+         /// #### /// #### /// WGL1 SHADERS /// #### /// #### ///
+         /// ############# ///              /// ############# /// -->
+    
+    <script  type="text" id="webby.shader.solid.vertex.wgl1">#version 100
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 model;
+    attribute vec3 pos;
+    
+    void main() { gl_Position = (projection*view*model)*vec4(pos,1.0); } </script>
+    
+    <script  type="text" id="webby.shader.solid.fragment.wgl1">#version 100
+    precision mediump float;
+    
+    uniform vec3 color;
+    
+    void main() { gl_FragColor=vec4(color,1.0); } </script>
+
+    <script  type="text" id="webby.shader.uv.vertex.wgl1">#version 100
+    uniform   mat4 projection;
+    uniform   mat4 view;
+    uniform   mat4 model;
+    attribute vec3 pos;
+    varying   vec3 uv;
+
+    void main() { gl_Position = (projection*view*model)*vec4(pos,1.0); uv = (pos*vec3(0.5)+vec3(0.5))/vec3(16.0,32.0,16.0); } </script>
+
+    <script  type="text" id="webby.shader.uv.fragment.wgl1">#version 100
+    precision mediump float;
+
+    varying vec3 uv;
+
+    void main() { gl_FragColor=vec4(uv,1.0); } </script>
+    
+  </body>
+</html>
