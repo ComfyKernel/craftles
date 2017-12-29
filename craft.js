@@ -269,8 +269,8 @@ class Block {
 	this.faces=FACES; } }
 
 class Chunk {
-    constructor(W,H,D,X,Y,Z,seed,BLOCKS) {
-	this.create(W,H,D,X,Y,Z,seed,BLOCKS); }
+    constructor(W,H,D,X,Y,Z,seed,BLOCKS,world) {
+	this.create(W,H,D,X,Y,Z,seed,BLOCKS,world); }
 
     getVal(X,Y,Z) {
 	var out=0;
@@ -289,6 +289,12 @@ class Chunk {
 		     +(noise.perlin2(X/10.0,Z/10.0)/4.0));
 
 	    if(val>0.14) out=4; }
+
+	var cave=(noise.perlin3(X/120.0,Y/45.0,Z/120.0)/2.0);
+	if(cave>0.10) out=0;
+
+	if(Y==0) { out=14; }
+	
 	return out; }
 
     getPostVal(X,Y,Z) {
@@ -304,7 +310,7 @@ class Chunk {
 
 	return (this.data[X+(Y*this.width)+(Z*this.width*this.height)]!=0); }
     
-    create(W,H,D,X,Y,Z,seed,BLOCKS) {
+    create(W,H,D,X,Y,Z,seed,BLOCKS,world) {
 	this.data     = [];
 
 	this.width  = W;
@@ -314,6 +320,8 @@ class Chunk {
 	this.posx = X;
 	this.posy = Y;
 	this.posz = Z;
+
+	this.world = world;
 
 	if(BLOCKS!=null) {
 	    this.blocks=BLOCKS; }
@@ -342,6 +350,13 @@ class Chunk {
     changeBlock(X,Y,Z,b) {
 	this.data[X+(this.width*Y)+(this.width*this.height*Z)]=b;
 
+	if(X==0) {
+	    var c=this.world.findChunk(this.posx-1,Z+this.posz);
+
+	    c.cleanMesh();
+	    c.genMesh(this.width,this.height,this.depth,c.posx,c.posy,c.posz);
+	}
+
 	this.cleanMesh();
 	this.genMesh(this.width,this.height,this.depth,this.posx,this.posy,this.posz); }
 
@@ -361,6 +376,7 @@ class Chunk {
 	this.indices  = [];
 	this.uvs      = [];
 	this.collider = [];
+	this.normals  = [];
 
 	for(var i=0; i < W; ++i) {
 	    for(var j=0; j < H; ++j) {
@@ -370,24 +386,24 @@ class Chunk {
 			var mkSolid=false;
 			if(this.isSolid(i+1,j,k)==0) {
 			    mkSolid=true;
-			    this.genFace(i+1,j,k , 0.0,0.0,1.0 , 0.0,1.0,0.0 , true  , block , 0); }
+			    this.genFace(i+1,j,k , 0.0,0.0,1.0 , 0.0,1.0,0.0 , true  , block , 0, 'l'); }
 			if(this.isSolid(i-1,j,k)==0) {
 			    mkSolid=true;
-			    this.genFace(i  ,j,k , 0.0,0.0,1.0 , 0.0,1.0,0.0 , false , block , 1); }
+			    this.genFace(i  ,j,k , 0.0,0.0,1.0 , 0.0,1.0,0.0 , false , block , 1, 'r'); }
 
 			if(this.isSolid(i,j+1,k)==0) {
 			    mkSolid=true;
-			    this.genFace(i,j+1,k , 0.0,0.0,1.0 , 1.0,0.0,0.0 , false , block , 2); }
+			    this.genFace(i,j+1,k , 0.0,0.0,1.0 , 1.0,0.0,0.0 , false , block , 2, 'd'); }
 			if(this.isSolid(i,j-1,k)==0) {
 			    mkSolid=true;
-			    this.genFace(i,j  ,k , 0.0,0.0,1.0 , 1.0,0.0,0.0 , true  , block , 3); }
+			    this.genFace(i,j  ,k , 0.0,0.0,1.0 , 1.0,0.0,0.0 , true  , block , 3, 'u'); }
 
 			if(this.isSolid(i,j,k+1)==0) {
 			    mkSolid=true;
-			    this.genFace(i,j,k+1 , 0.0,1.0,0.0 , 1.0,0.0,0.0 , true  , block , 4); }
+			    this.genFace(i,j,k+1 , 0.0,1.0,0.0 , 1.0,0.0,0.0 , true  , block , 4, 'b'); }
 			if(this.isSolid(i,j,k-1)==0) {
 			    mkSolid=true;
-			    this.genFace(i,j,k   , 0.0,1.0,0.0 , 1.0,0.0,0.0 , false , block , 5); }
+			    this.genFace(i,j,k   , 0.0,1.0,0.0 , 1.0,0.0,0.0 , false , block , 5, 'f'); }
 
 			if(mkSolid) {
 			    this.collider.push(new BlockCollider(1.0,1.0,1.0,i+X,j,k+Z)); }
@@ -395,15 +411,56 @@ class Chunk {
 
 	this.vbuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.vertices),gl.STATIC_DRAW);
 	this.ibuffer = new BAO(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array (this.indices ),gl.STATIC_DRAW);
-	this.ubuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.uvs     ),gl.STATIC_DRAW); }
+	this.ubuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.uvs     ),gl.STATIC_DRAW);
+	this.nbuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.normals ),gl.STATIC_DRAW);
+    }
 
-    genFace(CX,CY,CZ,RX,RY,RZ,UX,UY,UZ,REV,BLOCK,FACE) {
+    genFace(CX,CY,CZ,RX,RY,RZ,UX,UY,UZ,REV,BLOCK,FACE,NDIR) {
 	var index = this.vertices.length/3;
 	
         Array.prototype.push.apply(this.vertices,[CX      ,CY      ,CZ      ]);
         Array.prototype.push.apply(this.vertices,[CX+RX   ,CY+RY   ,CZ+RZ   ]);
         Array.prototype.push.apply(this.vertices,[CX+RX+UX,CY+RY+UY,CZ+RZ+UZ]);
 	Array.prototype.push.apply(this.vertices,[CX+UX   ,CY+UY   ,CZ+UZ   ]);
+
+	switch(NDIR) {
+	case 'l':
+	    Array.prototype.push.apply(this.normals,[-1,0,0]);
+	    Array.prototype.push.apply(this.normals,[-1,0,0]);
+	    Array.prototype.push.apply(this.normals,[-1,0,0]);
+	    Array.prototype.push.apply(this.normals,[-1,0,0]);
+	    break;
+	case 'r':
+	    Array.prototype.push.apply(this.normals,[1,0,0]);
+	    Array.prototype.push.apply(this.normals,[1,0,0]);
+	    Array.prototype.push.apply(this.normals,[1,0,0]);
+	    Array.prototype.push.apply(this.normals,[1,0,0]);
+	    break;
+	case 'd':
+	    Array.prototype.push.apply(this.normals,[0,-1,0]);
+	    Array.prototype.push.apply(this.normals,[0,-1,0]);
+	    Array.prototype.push.apply(this.normals,[0,-1,0]);
+	    Array.prototype.push.apply(this.normals,[0,-1,0]);
+	    break;
+	case 'u':
+	    Array.prototype.push.apply(this.normals,[0,1,0]);
+	    Array.prototype.push.apply(this.normals,[0,1,0]);
+	    Array.prototype.push.apply(this.normals,[0,1,0]);
+	    Array.prototype.push.apply(this.normals,[0,1,0]);
+	    break;
+	case 'b':
+	    Array.prototype.push.apply(this.normals,[0,0,-1]);
+	    Array.prototype.push.apply(this.normals,[0,0,-1]);
+	    Array.prototype.push.apply(this.normals,[0,0,-1]);
+	    Array.prototype.push.apply(this.normals,[0,0,-1]);
+	    break;
+	case 'f':
+	    Array.prototype.push.apply(this.normals,[0,0,1]);
+	    Array.prototype.push.apply(this.normals,[0,0,1]);
+	    Array.prototype.push.apply(this.normals,[0,0,1]);
+	    Array.prototype.push.apply(this.normals,[0,0,1]);
+	    break;
+	}
 
 	var td=1.0/16.0;
 	var xoff=this.blocks[BLOCK-1].faces[(FACE*2)]*td;
@@ -490,6 +547,7 @@ class World {
 		this.chunks[c].vbuffer.destroy();
 		this.chunks[c].ibuffer.destroy();
 		this.chunks[c].ubuffer.destroy();
+		this.chunks[c].nbuffer.destroy();
 
 		this.chunks.splice(c,1);
 	    } }
@@ -506,7 +564,7 @@ class World {
 
 		if(this.findChunk(px,pz)==null) {
 		    // debug.log("Creating chunk\n");
-		    this.chunks.push(new Chunk(this.chunkWidth,this.chunkHeight,this.chunkDepth , px,0,pz ,this.seed,this.blocks)); } } } }
+		    this.chunks.push(new Chunk(this.chunkWidth,this.chunkHeight,this.chunkDepth , px,0,pz ,this.seed,this.blocks,this)); } } } }
     
     create(CWIDTH,CHEIGHT,CDEPTH,SEED,BLOCKS) {
 	this.chunks=[];
@@ -530,7 +588,8 @@ window.onload = function() {
               # : # #-- #-: #-: '.'   #   #-: :-: #--  :  \n\
               '#'#' #-- ##' ##'  :    '#- # : : : #    :  \n\
 \n\
-                          By Jacob Langevin\n\
+                         By: Jacob Langevin\n\
+                       'Why did I make this?'\n\
 \n\
                      Email   : comfykernel@gmail.com\n\
                      Twitter : @ComfyKernel\n\
@@ -871,13 +930,18 @@ window.onload = function() {
 	
 	mat4.translate(vieMat,vieMat,vec3.fromValues(cx,cy,cz));
 
-	dx=vieMat[2];
-	dy=vieMat[6];
-	dz=vieMat[10];
+	var ndv=vec3.create();
+	vec3.normalize(ndv,vec3.fromValues(vieMat[2],vieMat[6],vieMat[10]));
+	
+	dx=ndv[0];
+	dy=ndv[1];
+	dz=ndv[2];
 
-	rx=vieMat[0];
-	ry=vieMat[4];
-	rz=vieMat[8];
+	vec3.normalize(ndv,vec3.fromValues(vieMat[0],vieMat[4],vieMat[8]));
+
+	rx=ndv[0]*1.5;
+	ry=ndv[1]*1.5;
+	rz=ndv[2]*1.5;
 
 	var ccd=1.0/256.0;
 	gl.clearColor(ccd*134.0,ccd*200.0,ccd*244.0,1.0);
@@ -910,6 +974,10 @@ window.onload = function() {
 	gl.uniformMatrix4fv(uvpro,false,proMat);
 
 	for(var i=0;i<tWorld.chunks.length;++i) {
+	    gl.enableVertexAttribArray(0);
+	    gl.enableVertexAttribArray(1);
+	    gl.enableVertexAttribArray(2);
+	    
 	    gl.uniformMatrix4fv(uvmod,false,tWorld.chunks[i].matrix);
 	    
 	    gl.bindBuffer(gl.ARRAY_BUFFER,tWorld.chunks[i].vbuffer.glid);
@@ -917,12 +985,12 @@ window.onload = function() {
 	    
 	    gl.bindBuffer(gl.ARRAY_BUFFER,tWorld.chunks[i].ubuffer.glid);
 	    gl.vertexAttribPointer(1,2,gl.FLOAT,false,0,0);
+
+	    gl.bindBuffer(gl.ARRAY_BUFFER,tWorld.chunks[i].nbuffer.glid);
+	    gl.vertexAttribPointer(2,3,gl.FLOAT,false,0,0);
             
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,tWorld.chunks[i].ibuffer.glid);
             gl.drawElements(gl.TRIANGLES,tWorld.chunks[i].indices.length,gl.UNSIGNED_INT,0);
-	    
-	    gl.enableVertexAttribArray(0);
-	    gl.enableVertexAttribArray(1);
 	}
 
 	mouseWheel = 0;
