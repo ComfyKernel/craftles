@@ -293,7 +293,7 @@ class Chunk {
 	var out=0;
 	var biome=(noise.perlin3(X/417.0,Y/112.0,Z/417.0))*2.0;
 
-	if(biome>0.25) {
+	if(biome>0.125) {
 	    var val=(noise.perlin3(noise.perlin2(X/32.0,Z/32.0),
 				   Y/12.0,
 				   noise.perlin2(Z/32.0,X/32.0))
@@ -301,13 +301,13 @@ class Chunk {
 		     +noise.perlin2((X)/96.0,(Z)/96.0)*2.0);
 	    if(val>0.14) out=2; }
 	else {
-	    var val=(noise.perlin3(X/45.0,Y/26.0,Z/45.0)+(((this.height-Y)-32.0)/25.0)
+	    var val=(noise.perlin3(X/45.0,Y/26.0,Z/30.0)+(((this.height-Y)-32.0)/25.0)
 		     +((Math.sin(X/20.0)*Math.cos(Z/20.0))/2.0)
 		     +(noise.perlin2(X/10.0,Z/10.0)/4.0));
 
 	    if(val>0.14) out=4; }
 
-	var cave=(noise.perlin3(X/120.0,Y/45.0,Z/120.0)/2.0);
+	var cave=(noise.perlin3(X/32.0,Y/45.0,Z/32.0)/2.0);
 	if(cave>0.10) out=0;
 
 	if(Y==0) { out=14; }
