@@ -45,6 +45,7 @@ var gl;
 var gl_mode;
 var gl_force_wgl1=false;
 var gl_aspect;
+var wvao;
     
 function initgl(name) {
     debug.log("[INIT] Loading WebGL2...");
@@ -76,10 +77,26 @@ function initgl(name) {
 		+ "\n[ GL ]   Vendor   : " + gl.getParameter(gl.VENDOR  )
 		+ "\n[ GL ]   Renderer : " + gl.getParameter(gl.RENDERER)
 		+ "\n[ GL ]   Shader V : " + gl.getParameter(gl.SHADING_LANGUAGE_VERSION) + "\n");
+
+    wvao = new VAO();
     
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT); }
-    
+
+class VAO {
+    constructor() {
+	this.create();
+    }
+
+    create() {
+	this.glid = gl.createVertexArray();
+    }
+
+    bind() {
+	gl.bindVertexArray(this.glid);
+    }
+}
+
 /// ############# ///        /// ############# ///
 /// #### /// #### /// SHADER /// #### /// #### ///
 /// ############# ///        /// ############# ///
@@ -413,6 +430,26 @@ class Chunk {
 	this.ibuffer = new BAO(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array (this.indices ),gl.STATIC_DRAW);
 	this.ubuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.uvs     ),gl.STATIC_DRAW);
 	this.nbuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.normals ),gl.STATIC_DRAW);
+
+	this.vao = new VAO();
+	this.vao.bind();
+
+	gl.enableVertexAttribArray(0);
+	gl.enableVertexAttribArray(1);
+	gl.enableVertexAttribArray(2);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER,this.vbuffer.glid);
+	gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER,this.ubuffer.glid);
+	gl.vertexAttribPointer(1,2,gl.FLOAT,false,0,0);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER,this.nbuffer.glid);
+	gl.vertexAttribPointer(2,3,gl.FLOAT,false,0,0);
+        
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.ibuffer.glid);
+
+	wvao.bind();
     }
 
     genFace(CX,CY,CZ,RX,RY,RZ,UX,UY,UZ,REV,BLOCK,FACE,NDIR) {
@@ -671,11 +708,13 @@ window.onload = function() {
 
     var tWorld = new World(16,128,16 , Math.random() , blocks);
 
-    if(gl_mode == 2) {
+    /*if(gl_mode == 2) {
         debug.log("[ GL ] (WGL2) Creating Vertex Array Object\n");
         
         var vao = gl.createVertexArray();
-        gl.bindVertexArray(vao); }
+        gl.bindVertexArray(vao); }*/
+
+    wvao.bind();
 
     var proMat = mat4.create();
     mat4.identity     (proMat);
@@ -842,6 +881,8 @@ window.onload = function() {
 	return false; }
 
     function loop() {
+	wvao.bind();
+	
 	if(moveFW) {
 	    if(canMoveF) cx+=dx*moveSpeed;
 	    // cy+=dy*moveSpeed;
@@ -974,7 +1015,9 @@ window.onload = function() {
 	gl.uniformMatrix4fv(uvpro,false,proMat);
 
 	for(var i=0;i<tWorld.chunks.length;++i) {
-	    gl.enableVertexAttribArray(0);
+	    tWorld.chunks[i].vao.bind();
+	    gl.uniformMatrix4fv(uvmod,false,tWorld.chunks[i].matrix);
+	    /*gl.enableVertexAttribArray(0);
 	    gl.enableVertexAttribArray(1);
 	    gl.enableVertexAttribArray(2);
 	    
@@ -989,7 +1032,7 @@ window.onload = function() {
 	    gl.bindBuffer(gl.ARRAY_BUFFER,tWorld.chunks[i].nbuffer.glid);
 	    gl.vertexAttribPointer(2,3,gl.FLOAT,false,0,0);
             
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,tWorld.chunks[i].ibuffer.glid);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,tWorld.chunks[i].ibuffer.glid);*/
             gl.drawElements(gl.TRIANGLES,tWorld.chunks[i].indices.length,gl.UNSIGNED_INT,0);
 	}
 
