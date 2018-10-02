@@ -971,7 +971,7 @@ window.onload = function() {
 	gl.activeTexture(gl.TEXTURE0);
 	gl.bindTexture(gl.TEXTURE_2D, terrain);
 
-	tWorld.scan(-cx,-cz,128);
+	tWorld.scan(-cx,-cz,64);
 	
 	mat4.identity (vieMat);
 	mat4.rotate   (vieMat,vieMat,Math.radians(mouseY),vec3.fromValues(1.0,0.0,0.0));
