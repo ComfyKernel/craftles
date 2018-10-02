@@ -752,10 +752,18 @@ window.onload = function() {
     var progGravity=0.0075;
     var realGravity=0.0;
 
+    var m_cblock = document.getElementById("c_block");
+
     var upHolder = function() {
-	if(currBlock<1) currBlock=0;
-	if(currBlock>blocks.length) currBlock=blocks.length;
-	debug.log("Active Block : " + blocks[currBlock-1].name + " Index : " + currBlock + "\n"); }
+	    if(currBlock<1) currBlock=0;
+	    if(currBlock>blocks.length) currBlock=blocks.length;
+
+        if(blocks[currBlock-1] != null) {
+            c_block.innerHTML="Holding : " + blocks[currBlock-1].name;
+        } else {
+            c_block.innerHTML="Mining";
+        }
+    }
 
     onScroll = function(V) { }
 
