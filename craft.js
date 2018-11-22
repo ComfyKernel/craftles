@@ -92,6 +92,10 @@ class VAO {
 	this.glid = gl.createVertexArray();
     }
 
+    destroy() {
+        gl.deleteVertexArray(this.glid);
+    }
+
     bind() {
 	gl.bindVertexArray(this.glid);
     }
@@ -380,12 +384,16 @@ class Chunk {
     cleanMesh() {
 	this.vbuffer.destroy();
 	this.ibuffer.destroy();
+    this.nbuffer.destroy();
 	this.ubuffer.destroy();
 
 	this.vertices.length=0;
 	this.indices.length=0;
 	this.uvs.length=0;
 	this.collider.length=0;
+    this.normals.length=0;
+
+    this.vao.destroy();
     }
 
     genMesh(W,H,D,X,Y,Z) {
@@ -400,31 +408,32 @@ class Chunk {
 		for(var k=0; k < D; ++k) {
 		    if(this.data[i+(j*W)+(k*W*H)]!=0) {
 			var block = this.data[i+(j*W)+(k*W*H)];
-			var mkSolid=false;
+			//var mkSolid=false;
 			if(this.isSolid(i+1,j,k)==0) {
-			    mkSolid=true;
+			    //mkSolid=true;
 			    this.genFace(i+1,j,k , 0.0,0.0,1.0 , 0.0,1.0,0.0 , true  , block , 0, 'l'); }
 			if(this.isSolid(i-1,j,k)==0) {
-			    mkSolid=true;
+			    //mkSolid=true;
 			    this.genFace(i  ,j,k , 0.0,0.0,1.0 , 0.0,1.0,0.0 , false , block , 1, 'r'); }
 
 			if(this.isSolid(i,j+1,k)==0) {
-			    mkSolid=true;
+			    //mkSolid=true;
 			    this.genFace(i,j+1,k , 0.0,0.0,1.0 , 1.0,0.0,0.0 , false , block , 2, 'd'); }
 			if(this.isSolid(i,j-1,k)==0) {
-			    mkSolid=true;
+			    //mkSolid=true;
 			    this.genFace(i,j  ,k , 0.0,0.0,1.0 , 1.0,0.0,0.0 , true  , block , 3, 'u'); }
 
 			if(this.isSolid(i,j,k+1)==0) {
-			    mkSolid=true;
+			    //mkSolid=true;
 			    this.genFace(i,j,k+1 , 0.0,1.0,0.0 , 1.0,0.0,0.0 , true  , block , 4, 'b'); }
 			if(this.isSolid(i,j,k-1)==0) {
-			    mkSolid=true;
+			    //mkSolid=true;
 			    this.genFace(i,j,k   , 0.0,1.0,0.0 , 1.0,0.0,0.0 , false , block , 5, 'f'); }
-
-			if(mkSolid) {
-			    this.collider.push(new BlockCollider(1.0,1.0,1.0,i+X,j,k+Z)); }
-		    } } } }
+			/*if(mkSolid) {
+			    this.collider.push(new BlockCollider(1.0,1.0,1.0,i+X,j,k+Z)); }*/
+		    } else {
+                this.collider.push(new BlockCollider(1.0,1.0,1.0,i+X,j,k+Z));
+            }} } }
 
 	this.vbuffer = new BAO(gl.ARRAY_BUFFER        ,new Float32Array(this.vertices),gl.STATIC_DRAW);
 	this.ibuffer = new BAO(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array (this.indices ),gl.STATIC_DRAW);
@@ -581,10 +590,8 @@ class World {
 	    var b=Z-pz;
 
 	    if(Math.sqrt(a*a+b*b)>R+(this.chunkWidth*4)) {
-		this.chunks[c].vbuffer.destroy();
-		this.chunks[c].ibuffer.destroy();
-		this.chunks[c].ubuffer.destroy();
-		this.chunks[c].nbuffer.destroy();
+
+            this.chunks[c].cleanMesh();
 
 		this.chunks.splice(c,1);
 	    } }
@@ -601,7 +608,8 @@ class World {
 
 		if(this.findChunk(px,pz)==null) {
 		    // debug.log("Creating chunk\n");
-		    this.chunks.push(new Chunk(this.chunkWidth,this.chunkHeight,this.chunkDepth , px,0,pz ,this.seed,this.blocks,this)); } } } }
+		    this.chunks.push(new Chunk(this.chunkWidth,this.chunkHeight,this.chunkDepth , px,0,pz ,this.seed,this.blocks,this));
+            break; } } } }
     
     create(CWIDTH,CHEIGHT,CDEPTH,SEED,BLOCKS) {
 	this.chunks=[];
@@ -625,7 +633,7 @@ window.onload = function() {
               # : # #-- #-: #-: '.'   #   #-: :-: #--  :  \n\
               '#'#' #-- ##' ##'  :    '#- # : : : #    :  \n\
 \n\
-                         By: Jacob Langevin\n\
+                         By: Casey Langevin\n\
                        'Why did I make this?'\n\
 \n\
                      Email   : comfykernel@gmail.com\n\
@@ -875,18 +883,37 @@ window.onload = function() {
     function getCollider(X,Y,Z) {
 	for(var i=0;i<tWorld.chunks.length;++i) {
 	    for(var b=0;b<tWorld.chunks[i].collider.length;++b) {
-		if(tWorld.chunks[i].collider[b].isSolid(X,Y,Z)) {
+		if(!tWorld.chunks[i].collider[b].isSolid(X,Y,Z)) {
 		    return tWorld.chunks[i].collider[b]; } } }
 	return null; }
 
     function isColliding(X,Y,Z) {
-	for(var i=0;i<tWorld.chunks.length;++i) {
+	/*for(var i=0;i<tWorld.chunks.length;++i) {
 	    for(var b=0;b<tWorld.chunks[i].collider.length;++b) {
 		if(tWorld.chunks[i].collider[b].isSolid(X,Y,Z)) {
 		    // debug.log("Hit Block at : " + tWorld.chunks[i].collider[b].posx + " " + tWorld.chunks[i].collider[b].posy + " " + tWorld.chunks[i].collider[b].posz+"\n");
 		    // debug.log("Pos at : " + X + " " + Y + " " + Z + "\n");
-		    return true; } } }
-	return false; }
+		    return false; } } }*/
+
+    for(let c of tWorld.chunks) {
+        if(!c) return true;
+
+        let d = Math.sqrt(Math.pow(X-c.posx, 2)+Math.pow(Y-c.posy, 2));
+
+       // debug.log('dist : ' + d + '\n');
+
+        if(d > 200.0) {
+            //debug.log('chunk forgotten\n');
+            continue;
+        }
+
+        for(let b=0;b<c.collider.length;++b) {
+            if(c.collider[b].isSolid(X,Y,Z)) {
+                return false;
+            }
+        }
+    }
+	return true; }
 
     function loop() {
 	wvao.bind();
@@ -955,7 +982,7 @@ window.onload = function() {
 		cy-=realJumpSpeed; }
 	} else {
 	    canJump=true;
-	    cy=Math.floor(cy);
+	    cy=Math.floor(cy)+0.01;
 	    realJumpSpeed=0.0;
 	    isJumping=false;
 	    realGravity=0.0;
